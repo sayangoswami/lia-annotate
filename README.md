@@ -4,11 +4,28 @@ version: 0.1
 language: en
 comment: Full-slide SVG annotation overlay for live teaching
 
+@onload
+document.addEventListener("keydown", e => {
+  const A = window.__liaAnnotate;
+  if (!A) return;
+
+  switch (e.key) {
+    case "p": A.toggle(); break;
+    case "c": A.clear(); break;
+    case "1": A.color("red"); break;
+    case "2": A.color("blue"); break;
+    case "3": A.color("green"); break;
+    case "4": A.color("orange"); break;
+    case "5": A.color("black"); break;
+  }
+});
+@end
+
 @annotate: @annotate_(@uid)
 
 @annotate_
 <section id="annotate_@0"
-         style="position:absolute; inset:0; z-index:1000; pointer-events:none;">
+         style="position:fixed; inset:0; z-index:1000; pointer-events:none;">
 
   <svg id="svg_@0"
        style="width:100%; height:100%; pointer-events:none;"></svg>
@@ -91,23 +108,6 @@ comment: Full-slide SVG annotation overlay for live teaching
   </script>
 </section>
 @end
-
-<script style="display:block">
-document.addEventListener("keydown", e => {
-  const A = window.__liaAnnotate;
-  if (!A) return;
-
-  switch (e.key) {
-    case "p": A.toggle(); break;
-    case "c": A.clear(); break;
-    case "1": A.color("red"); break;
-    case "2": A.color("blue"); break;
-    case "3": A.color("green"); break;
-    case "4": A.color("orange"); break;
-    case "5": A.color("black"); break;
-  }
-});
-</script>
 -->
 
 
