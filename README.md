@@ -135,3 +135,7 @@ document.addEventListener("keydown", e => {
   }
 });
 </script>
+
+<script>
+alert("LIA-ANNOTATE LOADED");
+</script>
