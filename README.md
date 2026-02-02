@@ -18,3 +18,9 @@ comment: Full-slide SVG annotation overlay for live teaching
 
 -->
 
+# Drawing
+
+    --{{0}}--
+This is a simple example for a drawing tool, that can be used in classrooms.
+
+@test
