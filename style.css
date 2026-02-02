@@ -1,0 +1,11 @@
+.lia-annotate-root {
+    position: absolute;
+    inset: 0;
+    z-index: 999;
+  }
+  
+  .lia-annotate-svg {
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* disabled by default */
+  }

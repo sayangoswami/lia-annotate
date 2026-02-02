@@ -1,141 +1,113 @@
 <!--
-author: LiaScript SVG Annotation
+author: Sayan Goswami
 version: 0.1
--->
+language: en
+comment: Full-slide SVG annotation overlay for live teaching
 
-<!-- ===============================
-     CSS
-     =============================== -->
-<style>
-.lia-annotate-root {
-  position: absolute;
-  inset: 0;
-  z-index: 999;
-}
+link: style.css
 
-.lia-annotate-svg {
-  width: 100%;
-  height: 100%;
-  pointer-events: none; /* disabled by default */
-}
-</style>
+@annotate: @annotate_(@uid)
 
-<!-- ===============================
-     MACRO
-     =============================== -->
-<!--
-define: Annotate
--->
-
-<div class="lia-annotate-root">
+@annotate_
+<section class="lia-annotate-slide" id="annotate_@0">
   <svg class="lia-annotate-svg"></svg>
-</div>
 
-<script>
-(() => {
-  const root = document.currentScript.previousElementSibling;
-  const svg  = root.querySelector("svg");
+  <script style="display:block">
+    setTimeout(() => {
+      const root = document.getElementById("annotate_@0");
+      const svg  = root.querySelector("svg");
 
-  let drawing = false;
-  let path;
-  let color = "red";
-  let active = false;
+      let active = false;
+      let drawing = false;
+      let path = null;
+      let color = "red";
 
-  const NS = "http://www.w3.org/2000/svg";
+      const NS = "http://www.w3.org/2000/svg";
 
-  function resize() {
-    const r = root.getBoundingClientRect();
-    svg.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
-  }
+      function resize() {
+        const r = root.getBoundingClientRect();
+        svg.setAttribute("viewBox", `0 0 ${r.width} ${r.height}`);
+      }
 
-  function pt(e) {
-    const r = svg.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
-  }
+      function pt(e) {
+        const r = svg.getBoundingClientRect();
+        return {
+          x: e.clientX - r.left,
+          y: e.clientY - r.top
+        };
+      }
 
-  function down(e) {
-    if (!active) return;
-    drawing = true;
+      function down(e) {
+        if (!active) return;
+        drawing = true;
 
-    const p = pt(e);
-    path = document.createElementNS(NS, "path");
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", color);
-    path.setAttribute("stroke-width", "3");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    path.setAttribute("d", `M ${p.x} ${p.y}`);
+        const p = pt(e);
+        path = document.createElementNS(NS, "path");
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", "3");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("stroke-linejoin", "round");
+        path.setAttribute("d", `M ${p.x} ${p.y}`);
 
-    svg.appendChild(path);
-    e.preventDefault();
-  }
+        svg.appendChild(path);
+        e.preventDefault();
+      }
 
-  function move(e) {
-    if (!drawing) return;
-    const p = pt(e);
-    path.setAttribute(
-      "d",
-      path.getAttribute("d") + ` L ${p.x} ${p.y}`
-    );
-    e.preventDefault();
-  }
+      function move(e) {
+        if (!drawing) return;
+        const p = pt(e);
+        path.setAttribute(
+          "d",
+          path.getAttribute("d") + ` L ${p.x} ${p.y}`
+        );
+        e.preventDefault();
+      }
 
-  function up() {
-    drawing = false;
-  }
+      function up() {
+        drawing = false;
+      }
 
-  function activate() {
-    active = true;
-    svg.style.pointerEvents = "auto";
-  }
+      resize();
+      window.addEventListener("resize", resize);
 
-  function deactivate() {
-    active = false;
-    svg.style.pointerEvents = "none";
-  }
+      svg.addEventListener("pointerdown", down);
+      svg.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
 
-  function clear() {
-    svg.innerHTML = "";
-  }
+      // register this slide as the active annotator
+      window.__liaAnnotate = {
+        toggle() {
+          active = !active;
+          svg.style.pointerEvents = active ? "auto" : "none";
+        },
+        clear() {
+          svg.innerHTML = "";
+        },
+        color(c) {
+          color = c;
+        }
+      };
+    }, 0);
+  </script>
+</section>
+@end
 
-  resize();
-  window.addEventListener("resize", resize);
-
-  svg.addEventListener("pointerdown", down);
-  svg.addEventListener("pointermove", move);
-  window.addEventListener("pointerup", up);
-
-  // expose slide-local API
-  window.__liaAnnotate = {
-    activate,
-    deactivate,
-    clear,
-    setColor: c => color = c,
-    toggle: () => active ? deactivate() : activate()
-  };
-})();
-</script>
-
-<!-- ===============================
-     KEYBOARD CONTROLS
-     =============================== -->
-<script>
+<script style="display:block">
 document.addEventListener("keydown", e => {
   const A = window.__liaAnnotate;
   if (!A) return;
 
   switch (e.key) {
-    case "`": A.toggle();        break;
-    case "c": A.clear();         break;
-    case "1": A.setColor("red"); break;
-    case "2": A.setColor("blue"); break;
-    case "3": A.setColor("green"); break;
-    case "4": A.setColor("orange"); break;
-    case "5": A.setColor("black"); break;
+    case "p": A.toggle(); break;
+    case "c": A.clear(); break;
+    case "1": A.color("red"); break;
+    case "2": A.color("blue"); break;
+    case "3": A.color("green"); break;
+    case "4": A.color("orange"); break;
+    case "5": A.color("black"); break;
   }
 });
 </script>
 
-<script>
-alert("LIA-ANNOTATE LOADED");
-</script>
+-->
