@@ -28,6 +28,7 @@ comment: Global SVG annotation overlay for live teaching
 
   /* ---------- state ---------- */
 
+  let enabled = false;
   let active = false;
   let drawing = false;
   let path = null;
@@ -49,7 +50,7 @@ comment: Global SVG annotation overlay for live teaching
   /* ---------- drawing ---------- */
 
   function down(e) {
-    if (!active) return;
+    if (!enabled) return;
     drawing = true;
 
     const p = pt(e);
@@ -66,7 +67,7 @@ comment: Global SVG annotation overlay for live teaching
   }
 
   function move(e) {
-    if (!drawing) return;
+    if (!enabled || !drawing) return;
     const p = pt(e);
     path.setAttribute("d",
       path.getAttribute("d") + ` L ${p.x} ${p.y}`);
@@ -75,7 +76,7 @@ comment: Global SVG annotation overlay for live teaching
 
   // override pointermove for eraser
   function eraseMove(e) {
-    if (mode !== "erase") return;
+    if (!enabled || mode !== "erase") return;
 
     const p = pt(e); // current pointer
     const paths = Array.from(svg.querySelectorAll("path"));
@@ -91,6 +92,42 @@ comment: Global SVG annotation overlay for live teaching
         }
         }
     });
+  }
+
+  function saveSVG(svg, prefix = "lia-annotate") {
+    const serializer = new XMLSerializer();
+    let source = serializer.serializeToString(svg);
+
+    // ensure SVG namespace (important!)
+    if (!source.match(/^<svg[^>]+xmlns="/)) {
+      source = source.replace(
+        /^<svg/,
+        '<svg xmlns="http://www.w3.org/2000/svg"'
+      );
+    }
+
+    const now = new Date();
+    const ts =
+      now.getFullYear() + "-" +
+      String(now.getMonth() + 1).padStart(2, "0") + "-" +
+      String(now.getDate()).padStart(2, "0") + "_" +
+      String(now.getHours()).padStart(2, "0") + "-" +
+      String(now.getMinutes()).padStart(2, "0") + "-" +
+      String(now.getSeconds()).padStart(2, "0");
+
+    const filename = `${prefix}-${ts}.svg`;
+
+    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function up() { drawing = false; }
@@ -111,11 +148,20 @@ comment: Global SVG annotation overlay for live teaching
 
   window.__liaAnnotate = {
     toggle() {
-      active = !active;
-      root.style.pointerEvents = active ? "auto" : "none";
-      svg.style.pointerEvents  = active ? "auto" : "none";
+      enabled = !enabled;
+      active = enabled;
+      root.style.pointerEvents = enabled ? "auto" : "none";
+      svg.style.pointerEvents  = enabled ? "auto" : "none";
+      root.style.cursor = enabled ? "crosshair" : "default";
     },
-    clear() { svg.innerHTML = ""; },
+    save() {
+      if (!enabled) return;
+      saveSVG(svg);
+    },
+    clear() { 
+      if (!enabled) return;
+      svg.innerHTML = ""; 
+    },
     color(c) { color = c; }
   };
 
@@ -129,11 +175,14 @@ comment: Global SVG annotation overlay for live teaching
       case "`": A.toggle(); break;
       case "e": mode = (mode == "erase")? "draw" : "erase"; break;
       case "c": A.clear(); break;
+      case "s": A.save(); break;
       case "1": A.color("red"); break;
       case "2": A.color("blue"); break;
       case "3": A.color("green"); break;
       case "4": A.color("orange"); break;
-      case "5": A.color("black"); break;
+      case "5": A.color("purple"); break;
+      case "6": A.color("olive"); break;
+      case "7": A.color("gray"); break;
     }
   });
 })();
