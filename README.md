@@ -86,24 +86,87 @@ comment: Global annotation overlay with step-based replay
 
     // replay script (NOT escaped)
     const replayCode = `
-        (function(){
-            const paths=[...document.querySelectorAll("path")];
-            paths.forEach(p => p.style.visibility="hidden");
+    (function(){
 
-            let cur=-1;
+      const paths = [...document.querySelectorAll("path")]
+          .sort((a,b)=>Number(a.dataset.step)-Number(b.dataset.step));
 
-            function show(n){
-                paths.forEach(p=>{
-                if(Number(p.dataset.step)<=n) p.style.visibility="visible";
-                else p.style.visibility="hidden";
-                });
+      // initially hide everything
+      paths.forEach(p=>{
+        p.style.visibility="hidden";
+      });
+
+      let cur = -1;
+      let playing = false;
+      let cancelToken = 0;
+
+      const SPEED = 600; // pixels per second
+
+      function finishInstant(p){
+        const len = p.getTotalLength();
+        p.style.strokeDasharray = len;
+        p.style.strokeDashoffset = 0;
+        p.style.visibility = "visible";
+      }
+
+      function animateStroke(p, token){
+        const len = p.getTotalLength();
+
+        p.style.strokeDasharray = len;
+        p.style.strokeDashoffset = len;
+        p.style.visibility = "visible";
+
+        const duration = (len / SPEED) * 1000;
+
+        const anim = p.animate(
+          [{strokeDashoffset:len},{strokeDashoffset:0}],
+          {duration:duration,fill:"forwards",easing:"linear"}
+        );
+
+        return new Promise(res=>{
+          anim.onfinish = ()=>{
+            if(token !== cancelToken) finishInstant(p);
+            res();
+          };
+        });
+      }
+
+      async function show(n){
+        cancelToken++;
+        const token = cancelToken;
+
+        // hide strokes beyond step
+        paths.forEach(p=>{
+          if(Number(p.dataset.step) > n){
+            p.style.visibility="hidden";
+            p.dataset.drawn="";
+          }
+        });
+
+        for(const p of paths){
+          const step = Number(p.dataset.step);
+          if(step <= n){
+            if(!p.dataset.drawn){
+              p.dataset.drawn = "1";
+              await animateStroke(p, token);
+              if(token !== cancelToken) return;
             }
+          }
+        }
+      }
 
-            document.addEventListener("keydown",e=>{
-                if(e.key==="ArrowRight"){cur++;show(cur);}
-                if(e.key==="ArrowLeft"){cur=Math.max(-1,cur-1);show(cur);}
-            });
-        })();
+      document.addEventListener("keydown",e=>{
+        if(e.key==="ArrowRight"){
+          cur++;
+          show(cur);
+        }
+        if(e.key==="ArrowLeft"){
+          cur = Math.max(-1, cur-1);
+          show(cur);
+        }
+      });
+
+    })();
     `;
 
     // insert script into SVG safely
