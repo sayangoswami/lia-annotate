@@ -91,79 +91,69 @@ comment: Global annotation overlay with step-based replay
       const paths = [...document.querySelectorAll("path")]
           .sort((a,b)=>Number(a.dataset.step)-Number(b.dataset.step));
 
-      // initially hide everything
-      paths.forEach(p=>{
-        p.style.visibility="hidden";
-      });
+      paths.forEach(p=>p.style.visibility="hidden");
 
       let cur = -1;
-      let playing = false;
-      let cancelToken = 0;
+      let currentAnimation = null;
 
-      const SPEED = 600; // pixels per second
+      const SPEED = 600; // px per second
 
-      function finishInstant(p){
-        const len = p.getTotalLength();
-        p.style.strokeDasharray = len;
-        p.style.strokeDashoffset = 0;
-        p.style.visibility = "visible";
-      }
+      function animateStroke(p){
+          const len = p.getTotalLength();
 
-      function animateStroke(p, token){
-        const len = p.getTotalLength();
+          p.style.strokeDasharray = len;
+          p.style.strokeDashoffset = len;
+          p.style.visibility = "visible";
 
-        p.style.strokeDasharray = len;
-        p.style.strokeDashoffset = len;
-        p.style.visibility = "visible";
+          const duration = (len / SPEED) * 1000;
 
-        const duration = (len / SPEED) * 1000;
+          const anim = p.animate(
+            [{strokeDashoffset:len},{strokeDashoffset:0}],
+            {duration:duration,fill:"forwards",easing:"linear"}
+          );
 
-        const anim = p.animate(
-          [{strokeDashoffset:len},{strokeDashoffset:0}],
-          {duration:duration,fill:"forwards",easing:"linear"}
-        );
+          currentAnimation = anim;
 
-        return new Promise(res=>{
-          anim.onfinish = ()=>{
-            if(token !== cancelToken) finishInstant(p);
-            res();
-          };
-        });
+          return anim.finished;
       }
 
       async function show(n){
-        cancelToken++;
-        const token = cancelToken;
 
-        // hide strokes beyond step
-        paths.forEach(p=>{
-          if(Number(p.dataset.step) > n){
-            p.style.visibility="hidden";
-            p.dataset.drawn="";
+          // FINISH any running animation immediately
+          if(currentAnimation){
+              try{ currentAnimation.finish(); } catch(e){}
+              currentAnimation = null;
           }
-        });
 
-        for(const p of paths){
-          const step = Number(p.dataset.step);
-          if(step <= n){
-            if(!p.dataset.drawn){
-              p.dataset.drawn = "1";
-              await animateStroke(p, token);
-              if(token !== cancelToken) return;
-            }
+          // hide future strokes
+          paths.forEach(p=>{
+              if(Number(p.dataset.step) > n){
+                  p.style.visibility="hidden";
+                  p.dataset.drawn="";
+              }
+          });
+
+          for(const p of paths){
+              const step = Number(p.dataset.step);
+
+              if(step <= n){
+                  if(!p.dataset.drawn){
+                      p.dataset.drawn = "1";
+                      await animateStroke(p);
+                  }
+              }
           }
-        }
       }
 
       document.addEventListener("keydown",e=>{
-        if(e.key==="ArrowRight"){
-          cur++;
-          show(cur);
-        }
-        if(e.key==="ArrowLeft"){
-          cur = Math.max(-1, cur-1);
-          show(cur);
-        }
+          if(e.key==="ArrowRight"){
+              cur++;
+              show(cur);
+          }
+          if(e.key==="ArrowLeft"){
+              cur = Math.max(-1, cur-1);
+              show(cur);
+          }
       });
 
     })();
