@@ -1,190 +1,161 @@
 <!--
 author: Sayan Goswami
-version: 0.2
-comment: Global SVG annotation overlay for live teaching
+version: 1.0
+comment: Global annotation overlay with step-based replay
 
 @onload
-(() => {
-  if (window.__liaAnnotate) return; // avoid double load
+(function(){
 
-  const NS = "http://www.w3.org/2000/svg";
+  let enabled=false;
+  let drawing=false;
+  let path=null;
+  let color="red";
+  let step=0;
+  let mode="draw";
 
-  const eraserRadius = 10;
+  const NS="http://www.w3.org/2000/svg";
 
-  /* ---------- DOM ---------- */
+  const root=document.createElement("section");
+  root.style="position:fixed; inset:0; z-index:10000; pointer-events:none";
 
-  const root = document.createElement("div");
-  root.style.cssText = `
-    position:fixed;
-    inset:0;
-    z-index:9999;
-    pointer-events:none;
-  `;
-
-  const svg = document.createElementNS(NS, "svg");
-  svg.style.cssText = "width:100%; height:100%;";
+  const svg=document.createElementNS(NS,"svg");
+  svg.style="width:100%; height:100%; pointer-events:none";
   root.appendChild(svg);
   document.body.appendChild(root);
 
-  /* ---------- state ---------- */
-
-  let enabled = false;
-  let active = false;
-  let drawing = false;
-  let path = null;
-  let color = "red";
-  let mode = "draw"; // "draw" or "erase"
-
-  function resize() {
-    svg.setAttribute("viewBox", `0 0 ${innerWidth} ${innerHeight}`);
+  function pt(e){
+    const r=svg.getBoundingClientRect();
+    return {x:e.clientX-r.left,y:e.clientY-r.top};
   }
 
-  function pt(e) {
-    return { x: e.clientX, y: e.clientY };
-  }
+  function down(e){
+    if(!enabled) return;
 
-  function distance(p, q) {
-    return Math.sqrt((p.x - q.x)**2 + (p.y - q.y)**2);
-  }
+    if(mode==="erase"){
+      erase(e);
+      return;
+    }
 
-  /* ---------- drawing ---------- */
+    drawing=true;
+    const p=pt(e);
 
-  function down(e) {
-    if (!enabled) return;
-    drawing = true;
-
-    const p = pt(e);
-    path = document.createElementNS(NS, "path");
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", color);
-    path.setAttribute("stroke-width", "3");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    path.setAttribute("d", `M ${p.x} ${p.y}`);
+    path=document.createElementNS(NS,"path");
+    path.setAttribute("fill","none");
+    path.setAttribute("stroke",color);
+    path.setAttribute("stroke-width","3");
+    path.dataset.step=step;
+    path.setAttribute("d",`M ${p.x} ${p.y}`);
     svg.appendChild(path);
-
-    e.preventDefault();
   }
 
-  function move(e) {
-    if (!enabled || !drawing) return;
-    const p = pt(e);
-    path.setAttribute("d",
-      path.getAttribute("d") + ` L ${p.x} ${p.y}`);
-    e.preventDefault();
+  function move(e){
+    if(!enabled||!drawing) return;
+    const p=pt(e);
+    path.setAttribute("d",path.getAttribute("d")+` L ${p.x} ${p.y}`);
   }
 
-  // override pointermove for eraser
-  function eraseMove(e) {
-    if (!enabled || mode !== "erase") return;
+  function up(){
+    if(drawing) step++;
+    drawing=false;
+  }
 
-    const p = pt(e); // current pointer
-    const paths = Array.from(svg.querySelectorAll("path"));
-    paths.forEach(path => {
-        const d = path.getAttribute("d");
-        const points = d.match(/M|L|[\d\.]+/g).slice(1); // crude split
-        for (let i = 0; i < points.length; i+=2) {
-        const x = parseFloat(points[i]);
-        const y = parseFloat(points[i+1]);
-        if (distance(p, {x, y}) < eraserRadius) {
-            path.remove();
-            break;
-        }
-        }
+  function erase(e){
+    const p=pt(e);
+    const paths=[...svg.querySelectorAll("path")];
+    paths.forEach(el=>{
+      const box=el.getBBox();
+      if(p.x>box.x-10&&p.x<box.x+box.width+10 &&
+         p.y>box.y-10&&p.y<box.y+box.height+10){
+           el.remove();
+      }
     });
   }
 
-  function saveSVG(svg, prefix = "lia-annotate") {
-    const serializer = new XMLSerializer();
-    let source = serializer.serializeToString(svg);
+  svg.addEventListener("pointerdown",down);
+  svg.addEventListener("pointermove",move);
+  window.addEventListener("pointerup",up);
 
-    // ensure SVG namespace (important!)
-    if (!source.match(/^<svg[^>]+xmlns="/)) {
-      source = source.replace(
-        /^<svg/,
-        '<svg xmlns="http://www.w3.org/2000/svg"'
-      );
-    }
+  function saveSVG(){
+    const NS="http://www.w3.org/2000/svg";
 
-    const now = new Date();
-    const ts =
-      now.getFullYear() + "-" +
-      String(now.getMonth() + 1).padStart(2, "0") + "-" +
-      String(now.getDate()).padStart(2, "0") + "_" +
-      String(now.getHours()).padStart(2, "0") + "-" +
-      String(now.getMinutes()).padStart(2, "0") + "-" +
-      String(now.getSeconds()).padStart(2, "0");
+    // clone the drawing
+    const clone=svg.cloneNode(true);
 
-    const filename = `${prefix}-${ts}.svg`;
+    // VERY IMPORTANT: ensure namespace exists
+    clone.setAttribute("xmlns",NS);
 
-    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    // replay script (NOT escaped)
+    const replayCode = `
+        (function(){
+            const paths=[...document.querySelectorAll("path")];
+            paths.forEach(p => p.style.visibility="hidden");
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
+            let cur=-1;
+
+            function show(n){
+                paths.forEach(p=>{
+                if(Number(p.dataset.step)<=n) p.style.visibility="visible";
+                else p.style.visibility="hidden";
+                });
+            }
+
+            document.addEventListener("keydown",e=>{
+                if(e.key==="ArrowRight"){cur++;show(cur);}
+                if(e.key==="ArrowLeft"){cur=Math.max(-1,cur-1);show(cur);}
+            });
+        })();
+    `;
+
+    // insert script into SVG safely
+    const script=document.createElementNS(NS,"script");
+    script.textContent=replayCode;
+    clone.appendChild(script);
+
+    // serialize properly
+    const serializer=new XMLSerializer();
+    const source=serializer.serializeToString(clone);
+
+    // const blob=new Blob([clone.outerHTML],{type:"image/svg+xml"});
+    const blob=new Blob([source],{type:"image/svg+xml;charset=utf-8"});
+    
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="annotated-"+Date.now()+".svg";
     a.click();
-
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
-  function up() { drawing = false; }
+  document.addEventListener("keydown",e=>{
+    switch(e.key){
+      case "`":
+        enabled=!enabled;
+        root.style.pointerEvents=enabled?"auto":"none";
+        svg.style.pointerEvents=enabled?"auto":"none";
+        break;
 
-  resize();
-  addEventListener("resize", resize);
-  svg.addEventListener("pointerdown", down);
-  svg.addEventListener("pointermove", move);
-  addEventListener("pointerup", up);
+      case "c":
+        if(enabled){saveSVG();svg.innerHTML="";}
+        break;
 
-  // override pointermove
-  svg.addEventListener("pointermove", e => {
-    if (mode === "draw") move(e);
-    else eraseMove(e);
-  });
+      case "s":
+        if(enabled) saveSVG();
+        break;
 
-  /* ---------- API ---------- */
+      case "e":
+        mode="erase";
+        break;
 
-  window.__liaAnnotate = {
-    toggle() {
-      enabled = !enabled;
-      active = enabled;
-      root.style.pointerEvents = enabled ? "auto" : "none";
-      svg.style.pointerEvents  = enabled ? "auto" : "none";
-      root.style.cursor = enabled ? "crosshair" : "default";
-    },
-    save() {
-      if (!enabled) return;
-      saveSVG(svg);
-    },
-    clear() { 
-      if (!enabled) return;
-      svg.innerHTML = ""; 
-    },
-    color(c) { color = c; }
-  };
+      case "p":
+        mode="draw";
+        break;
 
-  /* ---------- keyboard ---------- */
-
-  document.addEventListener("keydown", e => {
-    const A = window.__liaAnnotate;
-    if (!A) return;
-
-    switch (e.key) {
-      case "`": A.toggle(); break;
-      case "e": mode = (mode == "erase")? "draw" : "erase"; break;
-      case "c": A.clear(); break;
-      case "s": A.save(); break;
-      case "1": A.color("red"); break;
-      case "2": A.color("blue"); break;
-      case "3": A.color("green"); break;
-      case "4": A.color("orange"); break;
-      case "5": A.color("purple"); break;
-      case "6": A.color("olive"); break;
-      case "7": A.color("gray"); break;
+      case "1": color="red"; break;
+      case "2": color="blue"; break;
+      case "3": color="green"; break;
+      case "4": color="orange"; break;
+      case "5": color="black"; break;
     }
   });
+
 })();
 @end
 -->
