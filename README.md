@@ -183,6 +183,7 @@ comment: Global annotation overlay with step-based replay
         enabled=!enabled;
         root.style.pointerEvents=enabled?"auto":"none";
         svg.style.pointerEvents=enabled?"auto":"none";
+        root.style.cursor = enabled? "crosshair" : "default";
         break;
 
       case "c":
@@ -194,18 +195,20 @@ comment: Global annotation overlay with step-based replay
         break;
 
       case "e":
-        mode="erase";
+        mode = (mode == "erase")? "draw" : "erase";
         break;
 
       case "p":
         mode="draw";
         break;
 
-      case "1": color="red"; break;
-      case "2": color="blue"; break;
-      case "3": color="green"; break;
-      case "4": color="orange"; break;
-      case "5": color="black"; break;
+      case "1": A.color("red"); break;
+      case "2": A.color("blue"); break;
+      case "3": A.color("green"); break;
+      case "4": A.color("orange"); break;
+      case "5": A.color("purple"); break;
+      case "6": A.color("olive"); break;
+      case "7": A.color("gray"); break;
     }
   });
 
