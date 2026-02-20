@@ -75,7 +75,7 @@ comment: Global annotation overlay with step-based replay
   svg.addEventListener("pointermove",move);
   window.addEventListener("pointerup",up);
 
-  function saveSVG(animate=false){
+  function saveSVG(){
     const NS="http://www.w3.org/2000/svg";
 
     // clone the drawing
@@ -87,6 +87,15 @@ comment: Global annotation overlay with step-based replay
     // replay script (NOT escaped)
     const replayCode = `
     (function(){
+
+      // ---- Enable animation only if filename starts with "a_"
+      const filename = location.pathname.split("/").pop() || "";
+      const ENABLED = filename.startsWith("a_");
+
+      if(!ENABLED){
+        console.log("Animation disabled (filename does not start with a_)");
+        return;
+      }
 
       const paths = [...document.querySelectorAll("path")]
           .sort((a,b)=>Number(a.dataset.step)-Number(b.dataset.step));
@@ -161,8 +170,7 @@ comment: Global annotation overlay with step-based replay
 
     // insert script into SVG safely
     const script=document.createElementNS(NS,"script");
-    if (animate) script.textContent=replayCode;
-    else script.textContent=``;
+    script.textContent=replayCode;
     clone.appendChild(script);
 
     // serialize properly
