@@ -75,7 +75,7 @@ comment: Global annotation overlay with step-based replay
   svg.addEventListener("pointermove",move);
   window.addEventListener("pointerup",up);
 
-  function saveSVG(){
+  function saveSVG(animate=false){
     const NS="http://www.w3.org/2000/svg";
 
     // clone the drawing
@@ -161,7 +161,8 @@ comment: Global annotation overlay with step-based replay
 
     // insert script into SVG safely
     const script=document.createElementNS(NS,"script");
-    script.textContent=replayCode;
+    if (animate) script.textContent=replayCode;
+    else script.textContent=``;
     clone.appendChild(script);
 
     // serialize properly
@@ -187,11 +188,15 @@ comment: Global annotation overlay with step-based replay
         break;
 
       case "c":
-        if(enabled){saveSVG();svg.innerHTML="";}
+        if(enabled){svg.innerHTML="";}
         break;
 
       case "s":
         if(enabled) saveSVG();
+        break;
+      
+      case "a":
+        if(enabled) saveSVG(true);
         break;
 
       case "e":
@@ -202,13 +207,13 @@ comment: Global annotation overlay with step-based replay
         mode="draw";
         break;
 
-      case "1": A.color("red"); break;
-      case "2": A.color("blue"); break;
-      case "3": A.color("green"); break;
-      case "4": A.color("orange"); break;
-      case "5": A.color("purple"); break;
-      case "6": A.color("olive"); break;
-      case "7": A.color("gray"); break;
+      case "1": color = "red"; break;
+      case "2": color = "blue"; break;
+      case "3": color = "green"; break;
+      case "4": color = "orange"; break;
+      case "5": color = "purple"; break;
+      case "6": color = "olive"; break;
+      case "7": color = "gray"; break;
     }
   });
 
